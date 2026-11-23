@@ -117,4 +117,33 @@ public class Util {
             );
         }
     }
+
+    /**
+     * Runs the task on a dedicated thread with a large stack and returns what
+     * it threw. Lets nesting depth tests reach the parser's depth limit even
+     * when the tests run with a small default thread stack size.
+     * @param task the code to run
+     * @return the Throwable thrown by the task, or null if it completed normally
+     */
+    public static Throwable throwableFromLargeStack(final Runnable task) {
+        final Throwable[] thrown = new Throwable[1];
+        Thread thread = new Thread(null, new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    task.run();
+                } catch (Throwable t) {
+                    thrown[0] = t;
+                }
+            }
+        }, "large-stack-test", 8L * 1024 * 1024);
+        thread.start();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Interrupted while waiting for the large stack thread");
+        }
+        return thrown[0];
+    }
 }
