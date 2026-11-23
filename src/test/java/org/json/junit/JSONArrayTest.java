@@ -136,7 +136,7 @@ public class JSONArrayTest {
      * Expects a JSONException.
      */
     @Test
-    public void emptStr() {
+    public void emptyStr() {
         String str = "";
         try {
             assertNull("Should throw an exception", new JSONArray(str));
@@ -462,6 +462,41 @@ public class JSONArrayTest {
         } catch (JSONException e) {
             assertEquals("Expected an exception message",
                     "JSONArray[5] is not a String.",e.getMessage());
+        }
+    }
+
+    /**
+     * The JSON parser is permissive of unambiguous unquoted keys and values.
+     * Such JSON text should be allowed, even if it does not strictly conform
+     * to the spec. However, after being parsed, toString() should emit strictly
+     * conforming JSON text.
+     */
+    @Test
+    public void unquotedText() {
+        String str = "[value1, something!, (parens), foo@bar.com, 23, 23+45]";
+        JSONArray jsonArray = new JSONArray(str);
+        List<Object> expected = Arrays.<Object>asList("value1", "something!", "(parens)", "foo@bar.com", 23, "23+45");
+        assertEquals(expected, jsonArray.toList());
+    }
+
+    /**
+     * An object inside an array must reject arrays nested in key position
+     * before the re-escaped keys can exhaust memory (CVE-2023-5072).
+     */
+    @Test
+    public void nestedKeysDoNotExhaustMemory() {
+        String bomb = "1";
+        for (int i = 0; i < 30; i++) {
+            bomb = "[{\"a\":1," + bomb + ":1}]";
+        }
+        String str = "[{\"a\":1," + bomb + ":1}]";
+        assertTrue("payload should be small", str.length() < 512);
+        try {
+            assertNull("Expected an exception", new JSONArray(str));
+        } catch (JSONException e) {
+            assertEquals("Expecting an exception message",
+                    "Missing value at 8 [character 9 line 1]",
+                    e.getMessage());
         }
     }
 
